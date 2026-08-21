@@ -106,8 +106,14 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
       const res = await fetch(`/api/campaigns/${campaignId}`)
       if (res.ok) {
         const data = await res.json()
-        setCampaign(data)
-        setEditName(data.name)
+        const normalizedData: CampaignData = {
+          ...data,
+          leads: Array.isArray(data.leads) ? data.leads : [],
+          emails: Array.isArray(data.emails) ? data.emails : [],
+          senders: Array.isArray(data.senders) ? data.senders : [],
+        }
+        setCampaign(normalizedData)
+        setEditName(normalizedData.name ?? '')
       } else {
         toast({ title: 'Error', description: 'Campaign not found', variant: 'destructive' })
       }
@@ -244,6 +250,10 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
     )
   }
 
+  const leads = campaign.leads ?? []
+  const emails = campaign.emails ?? []
+  const senders = campaign.senders ?? []
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
       {/* Header */}
@@ -315,10 +325,10 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
         <TabsContent value="leads">
           <Card>
             <CardHeader>
-              <CardTitle>Leads ({campaign.leads.length})</CardTitle>
+              <CardTitle>Leads ({leads.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              {campaign.leads.length === 0 ? (
+              {leads.length === 0 ? (
                 <p className="py-8 text-center text-muted-foreground">No leads yet. Import a CSV to get started.</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -334,7 +344,7 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {campaign.leads.map((lead) => {
+                      {leads.map((lead) => {
                         const StatusIcon = leadStatusIcon[lead.status] ?? Clock
                         return (
                           <TableRow key={lead.id}>
@@ -346,7 +356,7 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
                                 <StatusIcon className="h-3 w-3" /> {lead.status}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right">{lead.icpScore?.toFixed(1) ?? '—'}</TableCell>
+                            <TableCell className="text-right">{lead.icpScore?.toFixed?.(1) ?? '—'}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
                                 <Button size="sm" variant="outline" onClick={() => handleQualify(lead.id)}>Qualify</Button>
@@ -368,10 +378,10 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
         <TabsContent value="emails">
           <Card>
             <CardHeader>
-              <CardTitle>Emails ({campaign.emails.length})</CardTitle>
+              <CardTitle>Emails ({emails.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              {campaign.emails.length === 0 ? (
+              {emails.length === 0 ? (
                 <p className="py-8 text-center text-muted-foreground">No emails sent yet.</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -385,7 +395,7 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {campaign.emails.map((email) => (
+                      {emails.map((email) => (
                         <TableRow key={email.id}>
                           <TableCell className="font-medium">{email.subject}</TableCell>
                           <TableCell>
@@ -417,11 +427,11 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {campaign.senders.length === 0 ? (
+              {senders.length === 0 ? (
                 <p className="py-8 text-center text-muted-foreground">No senders assigned. Assign a sender to start sending emails.</p>
               ) : (
                 <div className="space-y-3">
-                  {campaign.senders.map((sender) => (
+                  {senders.map((sender) => (
                     <div key={sender.id} className="flex items-center justify-between rounded-lg border p-3">
                       <div>
                         <p className="font-medium">{sender.name}</p>
