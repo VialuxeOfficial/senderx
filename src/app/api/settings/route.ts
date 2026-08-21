@@ -14,17 +14,31 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { key, value }: { key: string; value: string } = body
-
-    if (!key || value === undefined) {
-      return NextResponse.json({ error: 'key and value required' }, { status: 400 })
-    }
 
     await autoBackup('pre-settings-change')
-    await setSetting(key, value)
+
+    // Si viene un objeto con key y value individual
+    if (body.key && body.value !== undefined) {
+      await setSetting(body.key, body.value)
+      return NextResponse.json({ ok: true })
+    }
+
+    // Si viene un objeto con múltiples configuraciones (provider, apiKey, model, etc.)
+    const entries = Object.entries(body)
+    if (entries.length === 0) {
+      return NextResponse.json({ error: 'No settings provided' }, { status: 400 })
+    }
+
+    for (const [key, value] of entries) {
+      if (value !== undefined && value !== null) {
+        // Mapea nombres de campos camelCase a los nombres de la BD
+        const dbKey = key === 'apiKey' ? 'ai_api_key' : key === 'provider' ? 'ai_provider' : key === 'model' ? 'ai_model' : key
+        await setSetting(dbKey, String(value))
+      }
+    }
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to save setting' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
   }
 }
