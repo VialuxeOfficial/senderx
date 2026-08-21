@@ -1,8 +1,8 @@
 'use client'
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
 
-export default function CampaignDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: campaignId } = use(params)
+export default function CampaignDetailsPage({ params }: { params: { id: string } }) {
+  const campaignId = params.id
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -19,7 +19,9 @@ export default function CampaignDetailsPage({ params }: { params: Promise<{ id: 
   }
 
   useEffect(() => {
-    fetchLeads()
+    if (campaignId) {
+      fetchLeads()
+    }
   }, [campaignId])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,7 +32,6 @@ export default function CampaignDetailsPage({ params }: { params: Promise<{ id: 
     const text = await file.text()
     const lines = text.split('\n')
     
-    // Procesa las columnas básicas: email, nombre, empresa, cargo
     const parsedLeads = lines.slice(1).map(line => {
       const cols = line.split(',')
       return {
