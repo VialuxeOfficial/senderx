@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// Global key-value settings (AI provider, API key, model, etc.)
+model Setting {
+  key   String @id
+  value String
+}
+
+/// Sender email account with SMTP + IMAP config
+model Sender {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  smtpHost     String
+  smtpPort     Int      @default(587)
+  smtpUser     String
+  smtpPass     String
+  imapHost     String
+  imapPort     Int      @default(993)
+  imapUser     String
+  imapPass     String
+  dailyLimit   Int      @default(25)
+  sentToday    Int      @default(0)
+  lastResetAt  DateTime @default(now())
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaignSenders CampaignSender[]
+  emails          Email[]
+}
+
+/// Cold email campaign
+model Campaign {
+  id              String   @id @default(cuid())
+  name            String
+  status          String   @default("draft") // draft | active | paused | completed
+  icp             String?  // Ideal Customer Profile description
+  promptContext   String?  // Additional context for AI email generation
+  systemInstruction String? // System instruction for AI
+  sequenceConfig  String?  // JSON: follow-up sequence config (delays, sending window)
+  followup1       String?  // Follow-up template 1 (shared across leads)
+  followup2       String?  // Follow-up template 2
+  followup3       String?  // Follow-up template 3
+  abEnabled       Boolean  @default(false) // A/B testing enabled
+  sendingWindowStart Int   @default(9) // 9h
+  sendingWindowEnd   Int   @default(18) // 18h
+  timezone        String   @default("America/Asuncion")
+  skipWeekends    Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  campaignSenders CampaignSender[]
+  leads           Lead[]
+}
+
+/// Pivot: Campaign <-> Sender
+model CampaignSender {
+  id         String   @id @default(cuid())
+  campaignId String
+  senderId   String
+  createdAt  DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sender   Sender   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, senderId])
+}
+
+/// Lead imported from CSV
+model Lead {
+  id           String   @id @default(cuid())
+  campaignId   String
+  email        String
+  firstName    String?
+  lastName     String?
+  company      String?
+  title        String?
+  website      String?
+  phone        String?
+  linkedin     String?
+  icpScore     Int?     // 0-100 qualification score
+  icpReason    String?  // Why qualified or not
+  status       String   @default("pending") // pending | qualified | disqualified | sent | replied | bounced | unsubscribed
+  bounced      Boolean  @default(false)
+  replied      Boolean  @default(false)
+  variantGroup String?  // "A" | "B" for A/B testing
+  customData   String?  // JSON: extra CSV columns
+  emailHash    String?  // Hash for cross-campaign dedup
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  emails   Email[]
+  replies  Reply[]
+
+  @@index([campaignId])
+  @@index([email])
+  @@index([emailHash])
+}
+
+/// Email generated and/or sent
+model Email {
+  id             String   @id @default(cuid())
+  leadId         String
+  senderId       String
+  subject        String
+  greeting       String?  // Personalized greeting line
+  body           String   // Main email body
+  cta            String?  // Call to action
+  signature      String?  // Sender signature
+  plainText      String?  // Plain text version for deliverability
+  htmlContent    String?  // HTML version
+  status         String   @default("draft") // draft | queued | sent | failed | bounced
+  sequenceRole   String   @default("initial") // initial | followup_shared
+  sequenceStep   Int      @default(0) // 0=initial, 1-3=follow-ups
+  openedAt       DateTime?
+  clickedAt      DateTime?
+  sentAt         DateTime?
+  inReplyTo      String?  // Message-ID for threading
+  references     String?  // References header for threading
+  trackingPixel  String?  // Tracking pixel URL
+  unsubscribeUrl String?  // Unsubscribe link
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sender Sender @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([senderId])
+  @@index([status])
+}
+
+/// Reply received via IMAP
+model Reply {
+  id          String   @id @default(cuid())
+  leadId      String
+  fromEmail   String
+  subject     String
+  body        String
+  isBounce    Boolean  @default(false)
+  messageId   String?  // IMAP Message-ID
+  inReplyTo   String?  // Message-ID this replies to
+  receivedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([isBounce])
+}

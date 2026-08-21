@@ -1,0 +1,39 @@
+# ============================================================
+# SenderX — Netlify Configuration
+# ============================================================
+# Auto-generated. Safe to edit.
+# ============================================================
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Next.js plugin (handles SSR, ISR, image optimization, etc.)
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Long-running serverless functions timeout
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@prisma/client", "nodemailer", "imapflow", "mailparser"]
+
+# ---- Security headers ----
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# ---- Tracking pixel + unsubscribe (public) ----
+[[headers]]
+  for = "/api/track/*"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+    Access-Control-Allow-Origin = "*"
