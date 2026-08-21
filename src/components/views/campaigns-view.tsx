@@ -31,13 +31,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -55,6 +48,10 @@ interface Campaign {
   leadsCount: number
   sendersCount: number
   createdAt: string
+}
+
+interface CampaignsViewProps {
+  onSelectCampaign?: (campaignId: string) => void
 }
 
 const statusColors: Record<string, string> = {
@@ -75,7 +72,7 @@ const emptyForm = {
   skipWeekends: true,
 }
 
-export default function CampaignsView() {
+export default function CampaignsView({ onSelectCampaign }: CampaignsViewProps) {
   const { toast } = useToast()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
@@ -245,7 +242,15 @@ export default function CampaignsView() {
                 <TableBody>
                   {campaigns.map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell className="font-medium">
+                        <button
+                          type="button"
+                          onClick={() => onSelectCampaign?.(c.id)}
+                          className="text-left hover:underline text-primary font-semibold cursor-pointer"
+                        >
+                          {c.name}
+                        </button>
+                      </TableCell>
                       <TableCell>
                         <Badge className={statusColors[c.status] ?? ''} variant="secondary">
                           {c.status}

@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Crosshair, LayoutDashboard, Mail, Users, Settings, Send, ArrowLeft } from 'lucide-react'
+import { Crosshair, LayoutDashboard, Mail, Settings, Send, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import DashboardView from '@/components/views/dashboard-view'
 import CampaignsView from '@/components/views/campaigns-view'
 import SendersView from '@/components/views/senders-view'
@@ -33,7 +32,7 @@ export default function Home() {
       case 'dashboard':
         return <DashboardView />
       case 'campaigns':
-        return <CampaignsView />
+        return <CampaignsView onSelectCampaign={openCampaignDetail} />
       case 'campaign-detail':
         return selectedCampaignId ? (
           <div>
@@ -44,7 +43,7 @@ export default function Home() {
             <CampaignDetailView campaignId={selectedCampaignId} />
           </div>
         ) : (
-          <CampaignsView />
+          <CampaignsView onSelectCampaign={openCampaignDetail} />
         )
       case 'senders':
         return <SendersView />
@@ -61,6 +60,7 @@ export default function Home() {
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
+            <a href="https://utilbox.online" class="back-suite">← Suite de Soluciones </a>
             <div className="flex items-center gap-2">
               <Crosshair className="h-7 w-7 text-primary" />
               <div>
@@ -97,24 +97,7 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t bg-card mt-auto">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Crosshair className="h-3.5 w-3.5" />
-              <span>SenderX · v1.0</span>
-              <Separator orientation="vertical" className="h-3" />
-              <span>Motor de envío: POST /api/cron/send</span>
-              <Separator orientation="vertical" className="h-3" />
-              <span>Límite 25/día por remitente</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users className="h-3.5 w-3.5" />
-              <span>Throttle 40s · IMAP Sync · Auto-backup</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <footer>© 2026 Utilbox — Suite de Soluciones Digitales de Alto Rendimiento.</footer>
     </div>
   )
 }
