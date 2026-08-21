@@ -17,31 +17,21 @@ export async function POST(req: NextRequest) {
 
     await autoBackup('pre-settings-change')
 
-    // 1. Caso en el que el frontend envía { key: "...", value: "..." }
-    if (body.key && body.value !== undefined) {
-      await setSetting(body.key, body.value)
+    // 1. Maneja la estructura enviada por la interfaz actual
+    if (body.aiProvider !== undefined || body.aiApiKey !== undefined || body.aiModel !== undefined) {
+      if (body.aiProvider) await setSetting('ai_provider', String(body.aiProvider))
+      if (body.aiApiKey) await setSetting('ai_api_key', String(body.aiApiKey))
+      if (body.aiModel) await setSetting('ai_model', String(body.aiModel))
       return NextResponse.json({ ok: true })
     }
 
-    // 2. Caso en el que el frontend envía { provider: "groq", apiKey: "gsk_...", model: "openai/gpt-oss-120b" }
-    const entries = Object.entries(body)
-    if (entries.length === 0) {
-      return NextResponse.json({ error: 'No settings provided' }, { status: 400 })
+    // 2. Maneja formato key/value estándar
+    if (body.key && body.value !== undefined) {
+      await setSetting(body.key, String(body.value))
+      return NextResponse.json({ ok: true })
     }
 
-    for (const [key, value] of entries) {
-      if (value !== undefined && value !== null) {
-        // Mapea las claves de la UI hacia los nombres en la base de datos
-        let dbKey = key
-        if (key === 'apiKey') dbKey = 'ai_api_key'
-        if (key === 'provider') dbKey = 'ai_provider'
-        if (key === 'model') dbKey = 'ai_model'
-
-        await setSetting(dbKey, String(value))
-      }
-    }
-
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ error: 'Invalid settings payload' }, { status: 400 })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
   }
