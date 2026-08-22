@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Papa from 'papaparse'
 import {
   Crosshair, Edit2, Save, Users, Mail, Send, FileUp,
-  Sparkles, CheckCircle, XCircle, Clock,
+  Sparkles, CheckCircle, XCircle, Clock, AlertTriangle, RefreshCw
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -93,6 +93,7 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
   const { toast } = useToast()
   const [campaign, setCampaign] = useState<CampaignData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -102,6 +103,15 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
   const [generating, setGenerating] = useState(false)
 
   const fetchCampaign = useCallback(async () => {
+    if (!campaignId) {
+      setErrorMsg('ID de campaña no especificado.')
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    setErrorMsg(null)
+
     try {
       const res = await fetch(`/api/campaigns/${campaignId}`)
       if (res.ok) {
@@ -115,10 +125,15 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
         setCampaign(normalizedData)
         setEditName(normalizedData.name ?? '')
       } else {
-        toast({ title: 'Error', description: 'Campaign not found', variant: 'destructive' })
+        const errData = await res.json().catch(() => ({}))
+        const errorText = errData.error || `Error ${res.status}: No se pudo encontrar la campaña.`
+        setErrorMsg(errorText)
+        toast({ title: 'Error', description: errorText, variant: 'destructive' })
       }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to load campaign', variant: 'destructive' })
+    } catch (err: any) {
+      const msg = err.message || 'Error de conexión con el servidor.'
+      setErrorMsg(msg)
+      toast({ title: 'Error', description: msg, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -186,7 +201,6 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
       const rawLeads = parsed.data as Record<string, string>[]
 
-      // Normalización para mapear columnas comunes de Apollo y otros CSV
       const leads = rawLeads
         .map((row) => ({
           email: row.email || row['Email'] || row['Email Address'] || '',
@@ -268,10 +282,14 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
     )
   }
 
-  if (!campaign) {
+  if (errorMsg || !campaign) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <p className="text-muted-foreground">Campaign not found</p>
+      <div className="flex flex-col items-center justify-center p-12 gap-4">
+        <AlertTriangle className="h-10 w-10 text-amber-500" />
+        <p className="text-muted-foreground">{errorMsg || 'Campaña no encontrada.'}</p>
+        <Button variant="outline" size="sm" onClick={fetchCampaign} className="gap-2">
+          <RefreshCw className="h-4 w-4" /> Reintentar
+        </Button>
       </div>
     )
   }
