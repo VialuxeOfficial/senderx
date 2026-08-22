@@ -1,293 +1,293 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Plus, Trash2, Crosshair, Megaphone } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Switch } from '@/components/ui/switch'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { useToast } from '@/hooks/use-toast'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+interface Lead {
+  id: string
+  email: string
+  firstName?: string
+  lastName?: string
+  company?: string
+  title?: string
+  icpScore?: number
+  icpReason?: string
+  status: string
+}
 
 interface Campaign {
   id: string
   name: string
-  status: 'draft' | 'active' | 'paused' | 'completed'
-  icp: string
-  leadsCount: number
-  sendersCount: number
-  createdAt: string
+  status: string
+  icp?: string
+  systemInstruction?: string
+  qualifyPrompt?: string
+  sequencePrompt?: string
+  senderName?: string
+  senderEmail?: string
+  leads?: Lead[]
 }
 
-interface CampaignsViewProps {
-  onSelectCampaign?: (campaignId: string) => void
-}
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
-  paused: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
-  completed: 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-300',
-}
-
-const emptyForm = {
-  name: '',
-  icp: '',
-  promptContext: '',
-  systemInstruction: '',
-  abEnabled: false,
-  sendingWindowStart: '09:00',
-  sendingWindowEnd: '18:00',
-  skipWeekends: true,
-}
-
-export default function CampaignsView({ onSelectCampaign }: CampaignsViewProps) {
-  const { toast } = useToast()
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+export default function CampaignDetailView({ campaignId }: { campaignId: string }) {
+  const router = useRouter()
+  const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [form, setForm] = useState(emptyForm)
+  const [saving, setSaving] = useState(false)
+  const [qualifying, setQualifying] = useState(false)
+  const [qualifyingLeadId, setQualifyingLeadId] = useState<string | null>(null)
+  const [progress, setProgress] = useState({ current: 0, total: 0 })
 
-  const fetchCampaigns = async () => {
+  // Formulario local
+  const [form, setForm] = useState({
+    name: '',
+    status: 'draft',
+    icp: '',
+    qualifyPrompt: '',
+    sequencePrompt: '',
+    senderName: '',
+    senderEmail: '',
+  })
+
+  // Cargar datos de la campaña
+  const fetchCampaign = async () => {
     try {
-      const res = await fetch('/api/campaigns')
+      const res = await fetch(`/api/campaigns/${campaignId}`)
       if (res.ok) {
-        const data = await res.json()
-        setCampaigns(Array.isArray(data) ? data : data.campaigns ?? [])
+        const data: Campaign = await res.json()
+        setCampaign(data)
+        setForm({
+          name: data.name || '',
+          status: data.status || 'draft',
+          icp: data.icp || '',
+          qualifyPrompt: data.qualifyPrompt || '',
+          sequencePrompt: data.sequencePrompt || '',
+          senderName: data.senderName || '',
+          senderEmail: data.senderEmail || '',
+        })
       }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to load campaigns', variant: 'destructive' })
+    } catch (err) {
+      console.error('Error al cargar la campaña:', err)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchCampaigns()
-  }, [])
+    if (campaignId) fetchCampaign()
+  }, [campaignId])
 
-  const handleCreate = async () => {
-    if (!form.name.trim()) {
-      toast({ title: 'Validation', description: 'Campaign name is required', variant: 'destructive' })
-      return
-    }
-    setCreating(true)
+  // Guardar cambios en ICP, Prompts y Sender
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
     try {
-      const res = await fetch('/api/campaigns', {
-        method: 'POST',
+      const res = await fetch(`/api/campaigns/${campaignId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
       if (res.ok) {
-        toast({ title: 'Campaign Created', description: `"${form.name}" is ready` })
-        setDialogOpen(false)
-        setForm(emptyForm)
-        fetchCampaigns()
+        alert('Configuración guardada correctamente')
+        fetchCampaign()
       } else {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error ?? 'Create failed')
+        alert('Error al guardar la configuración')
       }
     } catch (err) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to create campaign', variant: 'destructive' })
+      console.error(err)
+      alert('Error de conexión')
     } finally {
-      setCreating(false)
+      setSaving(false)
     }
   }
 
-  const handleDelete = async (id: string) => {
+  // Calificar individualmente
+  const qualifySingleLead = async (leadId: string) => {
+    setQualifyingLeadId(leadId)
     try {
-      const res = await fetch(`/api/campaigns/${id}`, { method: 'DELETE' })
+      const res = await fetch('/api/leads/qualify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId }),
+      })
       if (res.ok) {
-        toast({ title: 'Deleted', description: 'Campaign removed' })
-        setCampaigns((prev) => prev.filter((c) => c.id !== id))
-      } else {
-        throw new Error('Delete failed')
+        await fetchCampaign()
       }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to delete campaign', variant: 'destructive' })
+    } catch (err) {
+      console.error('Error al calificar lead:', err)
+    } finally {
+      setQualifyingLeadId(null)
     }
   }
+
+  // Calificación masiva en lotes con retraso (evita error 429 en Groq)
+  const handleQualifyAll = async () => {
+    if (!campaign?.leads?.length) return
+    setQualifying(true)
+    const leads = campaign.leads
+    setProgress({ current: 0, total: leads.length })
+
+    for (let i = 0; i < leads.length; i++) {
+      await qualifySingleLead(leads[i].id)
+      setProgress({ current: i + 1, total: leads.length })
+      // Pausa de 1.5 segundos entre peticiones
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+    }
+
+    setQualifying(false)
+    alert('Todos los leads han sido procesados con IA.')
+  }
+
+  if (loading) return <div className="p-8 text-center text-gray-600">Cargando campaña...</div>
+  if (!campaign) return <div className="p-8 text-center text-red-500 font-medium">Campaña no encontrada.</div>
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6">
+    <div className="max-w-6xl mx-auto p-6 space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Crosshair className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">Campaigns</h1>
-            <p className="text-sm text-muted-foreground">SenderX &middot; v1.0</p>
-          </div>
+      <div className="flex justify-between items-center border-b pb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{campaign.name}</h1>
+          <span className="text-xs bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full font-medium capitalize mt-1 inline-block">
+            {campaign.status}
+          </span>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-1 h-4 w-4" /> New Campaign
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Create Campaign</DialogTitle>
-              <DialogDescription>Set up a new cold email campaign with AI personalization.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input id="name" placeholder="Q1 SaaS Founders Outreach" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="icp">ICP (Ideal Customer Profile)</Label>
-                <Input id="icp" placeholder="SaaS founders, 10-50 employees, Series A" value={form.icp} onChange={(e) => setForm((f) => ({ ...f, icp: e.target.value }))} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="promptContext">Prompt Context</Label>
-                <Textarea id="promptContext" placeholder="Additional context for AI email generation..." rows={3} value={form.promptContext} onChange={(e) => setForm((f) => ({ ...f, promptContext: e.target.value }))} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="systemInstruction">System Instruction</Label>
-                <Textarea id="systemInstruction" placeholder="Custom instructions for the AI model..." rows={3} value={form.systemInstruction} onChange={(e) => setForm((f) => ({ ...f, systemInstruction: e.target.value }))} />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="abEnabled">A/B Testing</Label>
-                <Switch id="abEnabled" checked={form.abEnabled} onCheckedChange={(v) => setForm((f) => ({ ...f, abEnabled: v }))} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Sending Window Start</Label>
-                  <Input type="time" value={form.sendingWindowStart} onChange={(e) => setForm((f) => ({ ...f, sendingWindowStart: e.target.value }))} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Sending Window End</Label>
-                  <Input type="time" value={form.sendingWindowEnd} onChange={(e) => setForm((f) => ({ ...f, sendingWindowEnd: e.target.value }))} />
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="skipWeekends">Skip Weekends</Label>
-                <Switch id="skipWeekends" checked={form.skipWeekends} onCheckedChange={(v) => setForm((f) => ({ ...f, skipWeekends: v }))} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={creating}>
-                {creating ? 'Creating...' : 'Create Campaign'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <button
+          onClick={handleQualifyAll}
+          disabled={qualifying || !campaign.leads?.length}
+          className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg shadow transition-colors disabled:opacity-50"
+        >
+          {qualifying
+            ? `Calificando con IA (${progress.current}/${progress.total})...`
+            : '✨ Calificar Todos los Leads'}
+        </button>
       </div>
 
-      {/* Campaigns Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Megaphone className="h-5 w-5" /> All Campaigns
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
+      {/* Formulario de Configuración de la Campaña */}
+      <form onSubmit={handleSaveSettings} className="bg-white p-6 rounded-xl shadow-sm space-y-4 border border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-800 border-b pb-2">Configuración e Instrucciones de IA</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Nombre del Remitente</label>
+            <input
+              type="text"
+              value={form.senderName}
+              onChange={(e) => setForm({ ...form, senderName: e.target.value })}
+              placeholder="Ej. Carlos Mendoza"
+              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Email del Remitente</label>
+            <input
+              type="email"
+              value={form.senderEmail}
+              onChange={(e) => setForm({ ...form, senderEmail: e.target.value })}
+              placeholder="Ej. carlos@utilbox.online"
+              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">ICP (Perfil de Cliente Ideal)</label>
+          <textarea
+            rows={2}
+            value={form.icp}
+            onChange={(e) => setForm({ ...form, icp: e.target.value })}
+            placeholder="Ej. CEOs y Founders de Agencias de Marketing B2B con más de 10 empleados en Latam."
+            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Prompt de Calificación (Groq/IA)</label>
+          <textarea
+            rows={3}
+            value={form.qualifyPrompt}
+            onChange={(e) => setForm({ ...form, qualifyPrompt: e.target.value })}
+            placeholder="Ej. Prioriza decisiones directas de compra. Descarta empresas sin sitio web o agencias de desarrollo."
+            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Prompt para Secuencia de Correo</label>
+          <textarea
+            rows={3}
+            value={form.sequencePrompt}
+            onChange={(e) => setForm({ ...form, sequencePrompt: e.target.value })}
+            placeholder="Ej. Usa un tono cercano, enfocado en ahorro de costos de infraestructura. Máximo 120 palabras."
+            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div className="pt-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Guardando...' : 'Guardar Cambios de Campaña'}
+          </button>
+        </div>
+      </form>
+
+      {/* Tabla de Leads */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">
+          Leads de la Campaña ({campaign.leads?.length || 0})
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wider font-semibold text-gray-600">
+                <th className="p-3">Email</th>
+                <th className="p-3">Nombre</th>
+                <th className="p-3">Empresa</th>
+                <th className="p-3">Score</th>
+                <th className="p-3">Razón de Calificación</th>
+                <th className="p-3 text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {campaign.leads?.map((lead) => (
+                <tr key={lead.id} className="hover:bg-gray-50 text-sm">
+                  <td className="p-3 font-medium text-gray-900">{lead.email}</td>
+                  <td className="p-3 text-gray-700">{lead.firstName} {lead.lastName}</td>
+                  <td className="p-3 text-gray-700">{lead.company || '—'}</td>
+                  <td className="p-3">
+                    {lead.icpScore !== undefined && lead.icpScore !== null ? (
+                      <span
+                        className={`px-2 py-1 rounded-md text-xs font-bold ${
+                          lead.icpScore >= 70
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {lead.icpScore} / 100
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic text-xs">Sin calificar</span>
+                    )}
+                  </td>
+                  <td className="p-3 text-xs text-gray-600 max-w-xs truncate" title={lead.icpReason || ''}>
+                    {lead.icpReason || '—'}
+                  </td>
+                  <td className="p-3 text-right">
+                    <button
+                      onClick={() => qualifySingleLead(lead.id)}
+                      disabled={qualifying || qualifyingLeadId === lead.id}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md font-medium transition-colors disabled:opacity-50"
+                    >
+                      {qualifyingLeadId === lead.id ? 'Calificando...' : 'Calificar'}
+                    </button>
+                  </td>
+                </tr>
               ))}
-            </div>
-          ) : campaigns.length === 0 ? (
-            <p className="py-8 text-center text-muted-foreground">No campaigns yet. Click &ldquo;New Campaign&rdquo; to get started.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>ICP</TableHead>
-                    <TableHead className="text-right">Leads</TableHead>
-                    <TableHead className="text-right">Senders</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {campaigns.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">
-                        <button
-                          type="button"
-                          onClick={() => onSelectCampaign?.(c.id)}
-                          className="text-left hover:underline text-primary font-semibold cursor-pointer"
-                        >
-                          {c.name}
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={statusColors[c.status] ?? ''} variant="secondary">
-                          {c.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-muted-foreground">{c.icp || '—'}</TableCell>
-                      <TableCell className="text-right">{c.leadsCount}</TableCell>
-                      <TableCell className="text-right">{c.sendersCount}</TableCell>
-                      <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Campaign</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete &ldquo;{c.name}&rdquo;? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(c.id)}>Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

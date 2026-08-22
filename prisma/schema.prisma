@@ -19,23 +19,23 @@ model Setting {
 
 /// Sender email account with SMTP + IMAP config
 model Sender {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  smtpHost     String
-  smtpPort     Int      @default(587)
-  smtpUser     String
-  smtpPass     String
-  imapHost     String
-  imapPort     Int      @default(993)
-  imapUser     String
-  imapPass     String
-  dailyLimit   Int      @default(25)
-  sentToday    Int      @default(0)
-  lastResetAt  DateTime @default(now())
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  smtpHost    String
+  smtpPort    Int      @default(587)
+  smtpUser    String
+  smtpPass    String
+  imapHost    String
+  imapPort    Int      @default(993)
+  imapUser    String
+  imapPass    String
+  dailyLimit  Int      @default(25)
+  sentToday   Int      @default(0)
+  lastResetAt DateTime @default(now())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   campaignSenders CampaignSender[]
   emails          Email[]
@@ -43,25 +43,31 @@ model Sender {
 
 /// Cold email campaign
 model Campaign {
-  id                 String   @id @default(cuid())
-  name               String
-  status             String   @default("draft") // draft | active | paused | completed
-  icp                String?  // Ideal Customer Profile description
-  promptContext      String?  // Additional context for AI email generation
-  systemInstruction  String?  // System instruction for AI
-  
+  id                String   @id @default(cuid())
+  name              String
+  status            String   @default("draft") // draft | active | paused | completed
+  icp               String?  // Ideal Customer Profile description
+  promptContext     String?  // Additional context for AI email generation
+  systemInstruction String?  // System instruction for AI
+
+  // Prompts e información de remitente vinculados a la campaña
+  qualifyPrompt     String?  // Prompt específico para la calificación de leads con IA
+  sequencePrompt    String?  // Prompt específico para la generación de secuencias de correo
+  senderName        String?  // Nombre del remitente para la campaña
+  senderEmail       String?  // Correo del remitente para la campaña
+
   // Follow-ups editables estilo Reply
-  followup1          String?  // Follow-up template 1 (Reply)
-  followUp1Days      Int?     @default(3)
-  
-  followup2          String?  // Follow-up template 2 (Reply)
-  followUp2Days      Int?     @default(7)
+  followup1         String?  // Follow-up template 1 (Reply)
+  followUp1Days     Int?     @default(3)
 
-  followup3          String?  // Follow-up template 3 (Break-up / Reply)
-  followUp3Days      Int?     @default(12)
+  followup2         String?  // Follow-up template 2 (Reply)
+  followUp2Days     Int?     @default(7)
 
-  sequenceConfig     String?  // JSON: extra follow-up sequence config
-  abEnabled          Boolean  @default(false) // A/B testing enabled
+  followup3         String?  // Follow-up template 3 (Break-up / Reply)
+  followUp3Days     Int?     @default(12)
+
+  sequenceConfig    String?  // JSON: extra follow-up sequence config
+  abEnabled         Boolean  @default(false) // A/B testing enabled
   sendingWindowStart Int      @default(9) // 9h
   sendingWindowEnd   Int      @default(18) // 18h
   timezone           String   @default("America/Asuncion")
@@ -154,16 +160,16 @@ model Email {
 
 /// Reply received via IMAP
 model Reply {
-  id          String   @id @default(cuid())
-  leadId      String
-  fromEmail   String
-  subject     String
-  body        String
-  isBounce    Boolean  @default(false)
-  messageId   String?  // IMAP Message-ID
-  inReplyTo   String?  // Message-ID this replies to
-  receivedAt  DateTime @default(now())
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  leadId     String
+  fromEmail  String
+  subject    String
+  body       String
+  isBounce   Boolean  @default(false)
+  messageId  String?  // IMAP Message-ID
+  inReplyTo  String?  // Message-ID this replies to
+  receivedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
