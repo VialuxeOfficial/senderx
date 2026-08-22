@@ -59,14 +59,11 @@ export default function Home() {
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <a href="https://utilbox.online" class="back-suite">← Suite de Soluciones </a>
-            <div className="flex items-center gap-2">
-              <Crosshair className="h-7 w-7 text-primary" />
-              <div>
-                <h1 className="text-lg font-bold leading-tight">SenderX · v1.0</h1>
-                <p className="text-[11px] text-muted-foreground leading-tight">Cold email hiper-personalizado · IA</p>
-              </div>
+          <div className="flex items-center gap-2">
+            <Crosshair className="h-7 w-7 text-primary" />
+            <div>
+              <h1 className="text-lg font-bold leading-tight">SenderX · v1.0</h1>
+              <p className="text-[11px] text-muted-foreground leading-tight">Cold email hiper-personalizado · IA</p>
             </div>
           </div>
 
@@ -95,9 +92,6 @@ export default function Home() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
         {renderView()}
       </main>
-
-      {/* Footer */}
-      <footer>© 2026 Senderx</footer>
     </div>
   )
 }
