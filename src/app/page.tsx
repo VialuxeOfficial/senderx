@@ -97,7 +97,7 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer>© 2026 Utilbox — Suite de Soluciones Digitales de Alto Rendimiento.</footer>
+      <footer>© 2026 Senderx</footer>
     </div>
   )
 }

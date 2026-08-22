@@ -137,7 +137,7 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
         body: JSON.stringify({ name: editName }),
       })
       if (res.ok) {
-        setCampaign((prev) => prev ? { ...prev, name: editName } : prev)
+        setCampaign((prev) => (prev ? { ...prev, name: editName } : prev))
         setEditing(false)
         toast({ title: 'Saved', description: 'Campaign name updated' })
       } else {
@@ -184,24 +184,46 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
     try {
       const text = await csvFile.text()
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
-      const leads = parsed.data as Record<string, string>[]
+      const rawLeads = parsed.data as Record<string, string>[]
+
+      // Normalización para mapear columnas comunes de Apollo y otros CSV
+      const leads = rawLeads
+        .map((row) => ({
+          email: row.email || row['Email'] || row['Email Address'] || '',
+          name:
+            row.name ||
+            row['Name'] ||
+            row['Full Name'] ||
+            `${row['First Name'] || ''} ${row['Last Name'] || ''}`.trim(),
+          company: row.company || row['Company'] || row['Company Name'] || '',
+        }))
+        .filter((l) => l.email)
 
       const res = await fetch('/api/leads/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ campaignId, leads }),
       })
+
+      const result = await res.json().catch(() => ({}))
+
       if (res.ok) {
-        const result = await res.json()
-        toast({ title: 'Import Complete', description: `${result.imported ?? leads.length} leads imported` })
+        toast({
+          title: 'Import Complete',
+          description: `${result.imported ?? leads.length} leads imported`,
+        })
         setImportOpen(false)
         setCsvFile(null)
         fetchCampaign()
       } else {
-        throw new Error('Import failed')
+        throw new Error(result.error || 'Import failed')
       }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to import leads', variant: 'destructive' })
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to import leads',
+        variant: 'destructive',
+      })
     } finally {
       setImporting(false)
     }
@@ -216,13 +238,17 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
       })
       if (res.ok) {
         const data = await res.json()
-        setCampaign((prev) => prev ? {
-          ...prev,
-          followup1: data.followup1 ?? prev.followup1,
-          followup2: data.followup2 ?? prev.followup2,
-          followup3: data.followup3 ?? prev.followup3,
-        } : prev)
-        toast({ title: 'Sequence Generated', description: 'Follow-up templates created by AI' })
+        setCampaign((prev) =>
+          prev
+            ? {
+                ...prev,
+                followup1: data.followup1 ?? prev.followup1,
+                followup2: data.followup2 ?? prev.followup2,
+                followup3: data.followup3 ?? prev.followup3,
+              }
+            : prev
+        )
+        toast({ title: 'Sequence Generated', description: 'Follow-up templates created' })
       } else {
         throw new Error('Generate failed')
       }
@@ -265,22 +291,35 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
           <div>
             {editing ? (
               <div className="flex items-center gap-2">
-                <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8 w-64" />
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="h-8 w-64"
+                />
                 <Button size="sm" onClick={handleSaveName} disabled={saving}>
                   <Save className="mr-1 h-3 w-3" /> Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                  Cancel
+                </Button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight">{campaign.name}</h1>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditing(true)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={() => setEditing(true)}
+                >
                   <Edit2 className="h-4 w-4" />
                 </Button>
               </div>
             )}
             <div className="flex items-center gap-2 pt-1">
-              <Badge className={statusColors[campaign.status] ?? ''} variant="secondary">{campaign.status}</Badge>
+              <Badge className={statusColors[campaign.status] ?? ''} variant="secondary">
+                {campaign.status}
+              </Badge>
               <span className="text-sm text-muted-foreground">SenderX &middot; v1.0</span>
             </div>
           </div>
@@ -294,16 +333,25 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Import Leads from CSV</DialogTitle>
-              <DialogDescription>Upload a CSV file with columns: email, name, company</DialogDescription>
+              <DialogDescription>
+                Upload a CSV file with columns: email, name, company
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="csv">CSV File</Label>
-                <Input id="csv" type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files?.[0] ?? null)} />
+                <Input
+                  id="csv"
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setCsvFile(e.target.files?.[0] ?? null)}
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setImportOpen(false)}>
+                Cancel
+              </Button>
               <Button onClick={handleImport} disabled={!csvFile || importing}>
                 {importing ? 'Importing...' : 'Import'}
               </Button>
@@ -315,10 +363,18 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
       {/* Tabs */}
       <Tabs defaultValue="leads">
         <TabsList>
-          <TabsTrigger value="leads"><Users className="mr-1 h-4 w-4" /> Leads</TabsTrigger>
-          <TabsTrigger value="emails"><Mail className="mr-1 h-4 w-4" /> Emails</TabsTrigger>
-          <TabsTrigger value="senders"><Send className="mr-1 h-4 w-4" /> Senders</TabsTrigger>
-          <TabsTrigger value="sequence"><Sparkles className="mr-1 h-4 w-4" /> Sequence</TabsTrigger>
+          <TabsTrigger value="leads">
+            <Users className="mr-1 h-4 w-4" /> Leads
+          </TabsTrigger>
+          <TabsTrigger value="emails">
+            <Mail className="mr-1 h-4 w-4" /> Emails
+          </TabsTrigger>
+          <TabsTrigger value="senders">
+            <Send className="mr-1 h-4 w-4" /> Senders
+          </TabsTrigger>
+          <TabsTrigger value="sequence">
+            <Sparkles className="mr-1 h-4 w-4" /> Sequence
+          </TabsTrigger>
         </TabsList>
 
         {/* Leads Tab */}
@@ -329,7 +385,9 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
             </CardHeader>
             <CardContent>
               {leads.length === 0 ? (
-                <p className="py-8 text-center text-muted-foreground">No leads yet. Import a CSV to get started.</p>
+                <p className="py-8 text-center text-muted-foreground">
+                  No leads yet. Import a CSV to get started.
+                </p>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -350,17 +408,29 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
                           <TableRow key={lead.id}>
                             <TableCell className="font-medium">{lead.email}</TableCell>
                             <TableCell>{lead.name || '—'}</TableCell>
-                            <TableCell className="text-muted-foreground">{lead.company || '—'}</TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {lead.company || '—'}
+                            </TableCell>
                             <TableCell>
                               <Badge variant="secondary" className="gap-1">
                                 <StatusIcon className="h-3 w-3" /> {lead.status}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right">{lead.icpScore?.toFixed?.(1) ?? '—'}</TableCell>
+                            <TableCell className="text-right">
+                              {lead.icpScore?.toFixed?.(1) ?? '—'}
+                            </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
-                                <Button size="sm" variant="outline" onClick={() => handleQualify(lead.id)}>Qualify</Button>
-                                <Button size="sm" onClick={() => handleSendSingle(lead.id)}>Send</Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleQualify(lead.id)}
+                                >
+                                  Qualify
+                                </Button>
+                                <Button size="sm" onClick={() => handleSendSingle(lead.id)}>
+                                  Send
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -423,16 +493,23 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 Assigned Senders
-                <Button size="sm" variant="outline">Assign Sender</Button>
+                <Button size="sm" variant="outline">
+                  Assign Sender
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {senders.length === 0 ? (
-                <p className="py-8 text-center text-muted-foreground">No senders assigned. Assign a sender to start sending emails.</p>
+                <p className="py-8 text-center text-muted-foreground">
+                  No senders assigned. Assign a sender to start sending emails.
+                </p>
               ) : (
                 <div className="space-y-3">
                   {senders.map((sender) => (
-                    <div key={sender.id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div
+                      key={sender.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                    >
                       <div>
                         <p className="font-medium">{sender.name}</p>
                         <p className="text-sm text-muted-foreground">{sender.email}</p>
@@ -453,7 +530,8 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
               <CardTitle className="flex items-center justify-between">
                 Follow-up Sequence
                 <Button size="sm" onClick={handleGenerateSequence} disabled={generating}>
-                  <Sparkles className="mr-1 h-4 w-4" /> {generating ? 'Generating...' : 'Generate with AI'}
+                  <Sparkles className="mr-1 h-4 w-4" />{' '}
+                  {generating ? 'Generating...' : 'Generate with AI'}
                 </Button>
               </CardTitle>
             </CardHeader>
@@ -462,30 +540,39 @@ export default function CampaignDetailView({ campaignId }: CampaignDetailProps) 
                 <Label className="text-sm font-semibold">Follow-up #1</Label>
                 <Separator />
                 <Textarea
-                  readOnly
                   rows={4}
-                  value={campaign.followup1 || 'No template yet. Click "Generate with AI" to create.'}
-                  className="bg-muted/50"
+                  value={campaign.followup1 || ''}
+                  onChange={(e) =>
+                    setCampaign((prev) => (prev ? { ...prev, followup1: e.target.value } : prev))
+                  }
+                  placeholder="Write sequence or click 'Generate with AI'..."
+                  className="bg-background"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Follow-up #2</Label>
                 <Separator />
                 <Textarea
-                  readOnly
                   rows={4}
-                  value={campaign.followup2 || 'No template yet. Click "Generate with AI" to create.'}
-                  className="bg-muted/50"
+                  value={campaign.followup2 || ''}
+                  onChange={(e) =>
+                    setCampaign((prev) => (prev ? { ...prev, followup2: e.target.value } : prev))
+                  }
+                  placeholder="Write sequence or click 'Generate with AI'..."
+                  className="bg-background"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Follow-up #3</Label>
                 <Separator />
                 <Textarea
-                  readOnly
                   rows={4}
-                  value={campaign.followup3 || 'No template yet. Click "Generate with AI" to create.'}
-                  className="bg-muted/50"
+                  value={campaign.followup3 || ''}
+                  onChange={(e) =>
+                    setCampaign((prev) => (prev ? { ...prev, followup3: e.target.value } : prev))
+                  }
+                  placeholder="Write sequence or click 'Generate with AI'..."
+                  className="bg-background"
                 />
               </div>
             </CardContent>
