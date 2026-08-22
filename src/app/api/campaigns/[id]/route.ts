@@ -5,10 +5,11 @@ import { db } from '@/lib/db'
 // GET: Obtener los detalles de una campaña específica por su ID
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const { id } = params
+    const resolvedParams = await params
+    const id = resolvedParams?.id
 
     if (!id) {
       return NextResponse.json(
@@ -36,8 +37,15 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(campaign)
+    // Aplanar / mapear senders para compatibilidad con el frontend
+    const senders = (campaign.campaignSenders || []).map((cs: any) => cs.sender)
+
+    return NextResponse.json({
+      ...campaign,
+      senders,
+    })
   } catch (error: any) {
+    console.error('Error GET /api/campaigns/[id]:', error)
     return NextResponse.json(
       { error: error?.message || 'Error al obtener la campaña' },
       { status: 500 }
@@ -48,10 +56,11 @@ export async function GET(
 // PATCH: Actualizar dinámicamente los campos de la campaña (ICP, Prompts, Sender, etc.)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const { id } = params
+    const resolvedParams = await params
+    const id = resolvedParams?.id
     const body = await req.json()
 
     if (!id) {
@@ -61,7 +70,6 @@ export async function PATCH(
       )
     }
 
-    // Extraer todos los campos actualizables
     const {
       name,
       status,
@@ -86,7 +94,6 @@ export async function PATCH(
       skipWeekends,
     } = body
 
-    // Construir dinámicamente el objeto con solo los datos presentes en el body
     const updateData: Record<string, any> = {}
 
     if (name !== undefined) updateData.name = name
@@ -118,6 +125,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedCampaign)
   } catch (error: any) {
+    console.error('Error PATCH /api/campaigns/[id]:', error)
     return NextResponse.json(
       { error: error?.message || 'Error al actualizar la campaña' },
       { status: 500 }
@@ -128,10 +136,11 @@ export async function PATCH(
 // DELETE: Eliminar la campaña y sus registros vinculados
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const { id } = params
+    const resolvedParams = await params
+    const id = resolvedParams?.id
 
     if (!id) {
       return NextResponse.json(
@@ -146,6 +155,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: 'Campaña eliminada correctamente' })
   } catch (error: any) {
+    console.error('Error DELETE /api/campaigns/[id]:', error)
     return NextResponse.json(
       { error: error?.message || 'Error al eliminar la campaña' },
       { status: 500 }
