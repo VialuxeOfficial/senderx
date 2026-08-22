@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Lead {
   id: string
@@ -29,9 +28,9 @@ interface Campaign {
 }
 
 export default function CampaignDetailView({ campaignId }: { campaignId: string }) {
-  const router = useRouter()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [qualifying, setQualifying] = useState(false)
   const [qualifyingLeadId, setQualifyingLeadId] = useState<string | null>(null)
@@ -49,9 +48,19 @@ export default function CampaignDetailView({ campaignId }: { campaignId: string 
   })
 
   // Cargar datos de la campaña
-  const fetchCampaign = async () => {
+  const fetchCampaign = useCallback(async () => {
+    if (!campaignId || campaignId === 'undefined') {
+      setError('ID de campaña no válido')
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
     try {
       const res = await fetch(`/api/campaigns/${campaignId}`)
+      
       if (res.ok) {
         const data: Campaign = await res.json()
         setCampaign(data)
@@ -64,17 +73,22 @@ export default function CampaignDetailView({ campaignId }: { campaignId: string 
           senderName: data.senderName || '',
           senderEmail: data.senderEmail || '',
         })
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        const msg = errData.error || `Error ${res.status}: No se pudo cargar la campaña`
+        setError(msg)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error al cargar la campaña:', err)
+      setError('Error de conexión con el servidor')
     } finally {
       setLoading(false)
     }
-  }
+  }, [campaignId])
 
   useEffect(() => {
-    if (campaignId) fetchCampaign()
-  }, [campaignId])
+    fetchCampaign()
+  }, [fetchCampaign])
 
   // Guardar cambios en ICP, Prompts y Sender
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -129,7 +143,6 @@ export default function CampaignDetailView({ campaignId }: { campaignId: string 
     for (let i = 0; i < leads.length; i++) {
       await qualifySingleLead(leads[i].id)
       setProgress({ current: i + 1, total: leads.length })
-      // Pausa de 1.5 segundos entre peticiones
       await new Promise((resolve) => setTimeout(resolve, 1500))
     }
 
@@ -137,8 +150,23 @@ export default function CampaignDetailView({ campaignId }: { campaignId: string 
     alert('Todos los leads han sido procesados con IA.')
   }
 
-  if (loading) return <div className="p-8 text-center text-gray-600">Cargando campaña...</div>
-  if (!campaign) return <div className="p-8 text-center text-red-500 font-medium">Campaña no encontrada.</div>
+  if (loading) {
+    return <div className="p-8 text-center text-gray-600 font-medium">Cargando campaña...</div>
+  }
+
+  if (error || !campaign) {
+    return (
+      <div className="p-8 text-center space-y-4">
+        <p className="text-red-500 font-medium">{error || 'Campaña no encontrada.'}</p>
+        <button
+          onClick={fetchCampaign}
+          className="text-xs bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded-md text-gray-700 font-medium"
+        >
+          Reintentar
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8">
@@ -253,7 +281,11 @@ export default function CampaignDetailView({ campaignId }: { campaignId: string 
               {campaign.leads?.map((lead) => (
                 <tr key={lead.id} className="hover:bg-gray-50 text-sm">
                   <td className="p-3 font-medium text-gray-900">{lead.email}</td>
-                  <td className="p-3 text-gray-700">{lead.firstName} {lead.lastName}</td>
+                  <td className="p-3 text-gray-700">
+                    {lead.firstName || lead.lastName
+                      ? `${lead.firstName || ''} ${lead.lastName || ''}`.trim()
+                      : '—'}
+                  </td>
                   <td className="p-3 text-gray-700">{lead.company || '—'}</td>
                   <td className="p-3">
                     {lead.icpScore !== undefined && lead.icpScore !== null ? (
