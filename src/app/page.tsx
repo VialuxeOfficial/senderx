@@ -23,6 +23,7 @@ export default function Home() {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null)
 
   function openCampaignDetail(campaignId: string) {
+    if (!campaignId) return
     setSelectedCampaignId(campaignId)
     setActiveView('campaign-detail')
   }
@@ -30,13 +31,18 @@ export default function Home() {
   function renderView() {
     switch (activeView) {
       case 'dashboard':
-        return <DashboardView />
+        return <DashboardView onSelectCampaign={openCampaignDetail} />
       case 'campaigns':
         return <CampaignsView onSelectCampaign={openCampaignDetail} />
       case 'campaign-detail':
         return selectedCampaignId ? (
           <div>
-            <Button variant="ghost" size="sm" className="mb-4 gap-2" onClick={() => setActiveView('campaigns')}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mb-4 gap-2"
+              onClick={() => setActiveView('campaigns')}
+            >
               <ArrowLeft className="h-4 w-4" />
               Volver a Campañas
             </Button>
@@ -50,7 +56,7 @@ export default function Home() {
       case 'settings':
         return <SettingsView />
       default:
-        return <DashboardView />
+        return <DashboardView onSelectCampaign={openCampaignDetail} />
     }
   }
 
@@ -59,18 +65,25 @@ export default function Home() {
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Crosshair className="h-7 w-7 text-primary" />
-            <div>
-              <h1 className="text-lg font-bold leading-tight">SenderX · v1.0</h1>
-              <p className="text-[11px] text-muted-foreground leading-tight">Cold email hiper-personalizado · IA</p>
+          <div className="flex items-center gap-3">
+            <a href="https://utilbox.online" class="back-suite">← Suite de Soluciones </a>
+            <div className="flex items-center gap-2 border-l pl-3">
+              <Crosshair className="h-7 w-7 text-primary" />
+              <div>
+                <h1 className="text-lg font-bold leading-tight">SenderX · v1.0</h1>
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  Cold email hiper-personalizado · IA
+                </p>
+              </div>
             </div>
           </div>
 
           <nav className="flex items-center gap-1">
-            {navItems.map(item => {
+            {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = activeView === item.id || (item.id === 'campaigns' && activeView === 'campaign-detail')
+              const isActive =
+                activeView === item.id ||
+                (item.id === 'campaigns' && activeView === 'campaign-detail')
               return (
                 <Button
                   key={item.id}
@@ -92,6 +105,11 @@ export default function Home() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
         {renderView()}
       </main>
+
+      {/* Footer Standard */}
+      <footer className="border-t py-4 text-center text-xs text-muted-foreground">
+        © 2026 Utilbox — Suite de Soluciones Digitales de Alto Rendimiento.
+      </footer>
     </div>
   )
 }
